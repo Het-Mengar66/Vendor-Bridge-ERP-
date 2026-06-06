@@ -19,7 +19,7 @@ class ActivityService:
             entity_type=log_in.entity_type,
             entity_id=log_in.entity_id,
             description=log_in.description,
-            metadata=log_in.metadata
+            meta_data=log_in.meta_data
         )
         db.add(db_log)
         db.commit()

@@ -11,5 +11,5 @@ class ActivityLog(Base):
     entity_type = Column(String(50), nullable=False)   # e.g., 'rfq', 'quotation', 'approval', 'po', 'invoice'
     entity_id = Column(UUID(as_uuid=True), nullable=False)
     description = Column(String, nullable=False)
-    metadata = Column(JSON, nullable=True)             # Extra data as JSON
+    meta_data = Column("metadata", JSON, nullable=True)             # Extra data as JSON
     created_at = Column(DateTime, server_default=text("now()"))

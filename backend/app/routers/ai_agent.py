@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.ai.agent import agent
-from app.services.quotation_service import QuotationService
+from app.services.quotation_service import get_quotations_for_rfq
 from uuid import UUID
 
 router = APIRouter(
@@ -13,8 +13,7 @@ router = APIRouter(
 @router.post("/analyze-quotations/{rfq_id}")
 def analyze_quotations(rfq_id: UUID, db: Session = Depends(get_db)):
     # Fetch quotations for the RFQ
-    quotations = QuotationService.get_all(db) # Ideally, we would have get_by_rfq_id
-    rfq_quots = [q for q in quotations if q.rfq_id == rfq_id]
+    rfq_quots = get_quotations_for_rfq(db, rfq_id)
     
     if not rfq_quots:
         raise HTTPException(status_code=404, detail="No quotations found for this RFQ")

@@ -14,3 +14,4 @@ reportlab==4.1.0
 # langgraph>=0.0.15
 # langchain>=0.0.350
 # langchain-google-genai>=0.0.5
+PyJWT>=2.8.0

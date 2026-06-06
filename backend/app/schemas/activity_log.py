@@ -9,7 +9,7 @@ class ActivityLogBase(BaseModel):
     entity_type: str
     entity_id: UUID
     description: str
-    metadata: Optional[Dict[str, Any]] = None
+    meta_data: Optional[Dict[str, Any]] = None
 
 class ActivityLogCreate(ActivityLogBase):
     pass
