@@ -33,3 +33,6 @@ WhatsApp Image *.jpeg
 # Databases
 *.db
 backend/vendorbridge.db
+
+# Project Management
+implementation_plan.md
