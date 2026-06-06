@@ -62,6 +62,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initializeAuth();
 
+    // In development, skip the Supabase auth listener since we use mock auth
+    if (process.env.NODE_ENV === 'development') {
+      return;
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
         setSession(session);
