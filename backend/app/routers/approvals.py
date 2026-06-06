@@ -25,7 +25,7 @@ def get_approval(id: UUID, db: Session = Depends(get_db)):
         )
     return approval
 
-@router.post("/", response_model=ApprovalResponse, status_code=status.HTTP_210_CREATED)
+@router.post("/", response_model=ApprovalResponse, status_code=status.HTTP_201_CREATED)
 def create_approval(approval_in: ApprovalCreate, db: Session = Depends(get_db)):
     return ApprovalService.create(db, approval_in)
 
