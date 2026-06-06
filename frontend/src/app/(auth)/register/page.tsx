@@ -1,285 +1,93 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { useAuthStore } from '../../../store/authStore';
-import { api } from '../../../lib/api';
-import { UserPlus, Mail, Key, User, Phone, MapPin, Briefcase, FileText, ShieldAlert, ArrowRight } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import api from '@/lib/api';
 
 export default function RegisterPage() {
-  const router = useRouter();
-  const { login, setLoading, setError, error, isLoading } = useAuthStore();
-
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [phone, setPhone] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [role, setRole] = useState('procurement_officer');
-  const [country, setCountry] = useState('India');
-  const [additionalInfo, setAdditionalInfo] = useState('');
+  const [error, setError] = useState('');
+  const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!firstName || !lastName || !email || !password) {
-      setError('Please fill in all required fields');
-      return;
-    }
+    setError('');
 
     try {
-      setLoading(true);
-      setError(null);
-
-      // Register new user on backend
-      const response = await api.post('/auth/register', {
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        first_name: firstName,
-        last_name: lastName,
-        phone,
-        role,
-        country,
-        additional_info: additionalInfo
       });
 
-      // Automatically log in after registration in dev/demo mode
-      const loginResponse = await api.post('/auth/login', {
-        email,
-        password,
-        first_name: firstName,
-        last_name: lastName,
-        role: role,
-      });
+      if (signUpError) throw signUpError;
 
-      const { access_token, user } = loginResponse.data;
-      login(access_token, user);
-      
-      router.push('/dashboard');
+      if (data.user) {
+        // POST to backend to create user record
+        await api.post('/auth/register', {
+          id: data.user.id,
+          email,
+          first_name: firstName,
+          last_name: lastName,
+          role,
+        });
+        
+        alert('Registration successful! Please log in.');
+        router.push('/login');
+      }
     } catch (err: any) {
-      console.error(err);
-      setError(
-        err.response?.data?.detail || 
-        'Registration failed. Please check the entered data.'
-      );
-    } finally {
-      setLoading(false);
+      setError(err.message || 'An error occurred during registration.');
+      alert(err.message || 'Registration error'); // Showing toast equivalent for now
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden font-sans">
-      {/* Background Neon Gradients */}
-      <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full bg-blue-600/10 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
-
-      {/* Main Glass Card */}
-      <div className="w-full max-w-lg bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 shadow-2xl relative z-10 transition-all duration-300 hover:border-slate-700/80">
-        
-        {/* Logo and Welcome */}
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center p-3 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-2xl shadow-lg shadow-indigo-500/20 mb-3 animate-pulse">
-            <UserPlus className="h-6 w-6 text-white" />
-          </div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-            Create ERP Account
-          </h1>
-          <p className="text-slate-400 text-xs mt-1.5 font-medium">
-            Register to join the VendorBridge network
-          </p>
+    <div className="flex items-center justify-center min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md">
+        <div>
+          <h2 className="text-center text-3xl font-extrabold text-gray-900">Register</h2>
         </div>
-
-        {/* Error Notification */}
-        {error && (
-          <div className="mb-5 flex items-start gap-3 bg-red-950/40 border border-red-800/60 rounded-xl p-3.5 text-red-400 text-sm">
-            <ShieldAlert className="h-5 w-5 shrink-0 mt-0.5" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* Registration Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          
-          {/* Name fields */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                First Name *
-              </label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 pointer-events-none">
-                  <User className="h-4.5 w-4.5" />
-                </span>
-                <input
-                  type="text"
-                  required
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="John"
-                  className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl py-2.5 pl-9 pr-3 text-sm outline-none transition-all duration-200 placeholder-slate-600 focus:border-blue-500/80 focus:ring-2 focus:ring-blue-500/20"
-                />
+        {error && <div className="text-red-500 text-sm text-center">{error}</div>}
+        <form className="mt-8 space-y-6" onSubmit={handleRegister}>
+          <div className="rounded-md shadow-sm -space-y-px space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">First Name</label>
+                <input required type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Last Name</label>
+                <input required type="text" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" value={lastName} onChange={(e) => setLastName(e.target.value)} />
               </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                Last Name *
-              </label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 pointer-events-none">
-                  <User className="h-4.5 w-4.5" />
-                </span>
-                <input
-                  type="text"
-                  required
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Doe"
-                  className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl py-2.5 pl-9 pr-3 text-sm outline-none transition-all duration-200 placeholder-slate-600 focus:border-blue-500/80 focus:ring-2 focus:ring-blue-500/20"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Email address</label>
+              <input required type="email" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Password</label>
+              <input required type="password" minLength={6} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Role</label>
+              <select required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" value={role} onChange={(e) => setRole(e.target.value)}>
+                <option value="procurement_officer">Procurement Officer</option>
+                <option value="vendor">Vendor</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
+              </select>
             </div>
           </div>
-
-          {/* Email / Password */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                Email Address *
-              </label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 pointer-events-none">
-                  <Mail className="h-4.5 w-4.5" />
-                </span>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="john@company.com"
-                  className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl py-2.5 pl-9 pr-3 text-sm outline-none transition-all duration-200 placeholder-slate-600 focus:border-blue-500/80 focus:ring-2 focus:ring-blue-500/20"
-                />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                Password *
-              </label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 pointer-events-none">
-                  <Key className="h-4.5 w-4.5" />
-                </span>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="min. 6 chars"
-                  className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl py-2.5 pl-9 pr-3 text-sm outline-none transition-all duration-200 placeholder-slate-600 focus:border-blue-500/80 focus:ring-2 focus:ring-blue-500/20"
-                />
-              </div>
-            </div>
+          <div>
+            <button type="submit" className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+              Register
+            </button>
           </div>
-
-          {/* Phone / Role */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                Phone Number
-              </label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 pointer-events-none">
-                  <Phone className="h-4.5 w-4.5" />
-                </span>
-                <input
-                  type="text"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+91 9988776655"
-                  className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl py-2.5 pl-9 pr-3 text-sm outline-none transition-all duration-200 placeholder-slate-600 focus:border-blue-500/80 focus:ring-2 focus:ring-blue-500/20"
-                />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                System Role *
-              </label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 pointer-events-none">
-                  <Briefcase className="h-4.5 w-4.5" />
-                </span>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl py-2.5 pl-9 pr-3 text-sm outline-none appearance-none cursor-pointer transition-all duration-200 focus:border-blue-500/80 focus:ring-2 focus:ring-blue-500/20"
-                >
-                  <option value="procurement_officer" className="bg-slate-950 text-white">Procurement Officer</option>
-                  <option value="vendor" className="bg-slate-950 text-white">Vendor / Supplier</option>
-                  <option value="manager" className="bg-slate-950 text-white">Manager / Approver</option>
-                  <option value="admin" className="bg-slate-950 text-white">System Admin</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Country */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-              Country
-            </label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 pointer-events-none">
-                <MapPin className="h-4.5 w-4.5" />
-              </span>
-              <input
-                type="text"
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                placeholder="India"
-                className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl py-2.5 pl-9 pr-3 text-sm outline-none transition-all duration-200 placeholder-slate-600 focus:border-blue-500/80 focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-          </div>
-
-          {/* Additional Info */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-              Additional Details
-            </label>
-            <div className="relative">
-              <span className="absolute top-3 left-3 text-slate-500 pointer-events-none">
-                <FileText className="h-4.5 w-4.5" />
-              </span>
-              <textarea
-                value={additionalInfo}
-                onChange={(e) => setAdditionalInfo(e.target.value)}
-                placeholder="GST number, company registration info or other notes..."
-                rows={2}
-                className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl py-2.5 pl-9 pr-3 text-sm outline-none transition-all duration-200 placeholder-slate-600 focus:border-blue-500/80 focus:ring-2 focus:ring-blue-500/20 resize-none"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full mt-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold rounded-xl py-2.5 text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 disabled:opacity-50"
-          >
-            {isLoading ? 'Creating Account...' : 'Register'}
-            <ArrowRight className="h-4 w-4" />
-          </button>
         </form>
-
-        {/* Footer Link */}
-        <div className="text-center mt-5 text-sm text-slate-400">
-          Already have an account?{' '}
-          <Link
-            href="/login"
-            className="font-semibold text-blue-400 hover:text-blue-300 transition-colors"
-          >
-            Sign in
-          </Link>
-        </div>
-
       </div>
     </div>
   );

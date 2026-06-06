@@ -6,15 +6,15 @@ import { useAuthStore } from '../store/authStore';
 
 export default function Home() {
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+  const { session } = useAuthStore();
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (session) {
       router.replace('/dashboard');
     } else {
       router.replace('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [session, router]);
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">
