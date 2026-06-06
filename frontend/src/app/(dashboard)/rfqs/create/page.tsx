@@ -11,12 +11,30 @@ export default function CreateRFQPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [availableVendors, setAvailableVendors] = useState<any[]>([]);
+  
+  useEffect(() => {
+    async function fetchVendors() {
+      try {
+        const res = await api.get("/vendors/");
+        setAvailableVendors(res.data);
+      } catch (err) {
+        console.error("Failed to fetch vendors", err);
+      }
+    }
+    fetchVendors();
+  }, []);
   
   // Form State
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [deadline, setDeadline] = useState("");
   const [items, setItems] = useState([{ name: "", quantity: 1, unit: "pcs", specs: "" }]);
+  const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
+
+  const toggleVendor = (id: string) => {
+    setSelectedVendors(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]);
+  };
 
   const handleAddItem = () => {
     setItems([...items, { name: "", quantity: 1, unit: "pcs", specs: "" }]);
@@ -52,7 +70,13 @@ export default function CreateRFQPage() {
         }))
       };
       
-      await api.post("/rfqs/", payload);
+      const rfqRes = await api.post("/rfqs/", payload);
+      const rfqId = rfqRes.data.id;
+
+      if (selectedVendors.length > 0) {
+        await api.post(`/rfqs/${rfqId}/vendors`, selectedVendors.map(vid => ({ vendor_id: vid })));
+      }
+      
       router.push("/rfqs");
     } catch (error) {
       console.error("Failed to create RFQ:", error);
@@ -77,10 +101,10 @@ export default function CreateRFQPage() {
         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-border rounded-full -z-10"></div>
         <div 
           className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary rounded-full -z-10 transition-all duration-500"
-          style={{ width: step === 1 ? '0%' : step === 2 ? '50%' : '100%' }}
+          style={{ width: step === 1 ? '0%' : step === 2 ? '33%' : step === 3 ? '66%' : '100%' }}
         ></div>
         
-        {[1, 2, 3].map((i) => (
+        {[1, 2, 3, 4].map((i) => (
           <div 
             key={i}
             className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors duration-300 ${
@@ -99,7 +123,7 @@ export default function CreateRFQPage() {
         exit={{ opacity: 0, x: -20 }}
         className="glass-panel p-8 rounded-2xl border border-border shadow-sm"
       >
-        <form onSubmit={step === 3 ? handleSubmit : (e) => { e.preventDefault(); setStep(step + 1); }}>
+        <form onSubmit={step === 4 ? handleSubmit : (e) => { e.preventDefault(); setStep(step + 1); }}>
           
           {/* STEP 1: Basic Details */}
           {step === 1 && (
@@ -230,8 +254,44 @@ export default function CreateRFQPage() {
             </div>
           )}
 
-          {/* STEP 3: Review */}
+          {/* STEP 3: Assign Vendors */}
           {step === 3 && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold text-foreground mb-6 flex items-center">
+                <FileText className="w-5 h-5 mr-2 text-primary" /> Assign Vendors
+              </h2>
+              <p className="text-sm text-muted-foreground mb-4">Select the vendors you want to invite to this RFQ.</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto pr-2">
+                {availableVendors.map(vendor => (
+                  <div 
+                    key={vendor.id} 
+                    onClick={() => toggleVendor(vendor.id)}
+                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      selectedVendors.includes(vendor.id) 
+                        ? 'border-primary bg-primary/5' 
+                        : 'border-border bg-card hover:border-primary/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-bold text-foreground">{vendor.company_name}</h4>
+                        <p className="text-xs text-muted-foreground">{vendor.category || 'General'}</p>
+                      </div>
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        selectedVendors.includes(vendor.id) ? 'bg-primary text-white' : 'border-2 border-muted'
+                      }`}>
+                        {selectedVendors.includes(vendor.id) && <CheckCircle2 className="w-4 h-4" />}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* STEP 4: Review */}
+          {step === 4 && (
             <div className="space-y-6">
               <h2 className="text-xl font-semibold text-foreground mb-6 flex items-center">
                 <FileText className="w-5 h-5 mr-2 text-primary" /> Review & Publish
@@ -285,7 +345,7 @@ export default function CreateRFQPage() {
               </Link>
             )}
 
-            {step < 3 ? (
+            {step < 4 ? (
               <button
                 type="submit"
                 className="px-6 py-2.5 rounded-lg font-semibold text-primary-foreground bg-primary hover:bg-primary/90 shadow-md shadow-primary/20 transition-colors flex items-center"

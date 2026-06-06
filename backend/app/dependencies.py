@@ -6,6 +6,9 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.config import settings
 from app.models.user import User
+from supabase import create_client, Client
+
+supabase_client: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
 security = HTTPBearer(auto_error=False)
 
@@ -66,19 +69,15 @@ def get_current_user(
 
     # 3. Real Supabase JWT Verification
     try:
-        # Supabase uses HS256 with the Supabase JWT secret
-        # In a real setup, verify using settings.SUPABASE_KEY (or jwt secret)
-        payload = jwt.decode(
-            token, 
-            settings.SECRET_KEY,  # Replace with SUPABASE_JWT_SECRET if available
-            algorithms=["HS256"], 
-            options={"verify_aud": False}
-        )
-        supabase_uid: str = payload.get("sub")
-        if supabase_uid is None:
+        user_response = supabase_client.auth.get_user(token)
+        if not user_response or not user_response.user:
             raise credentials_exception
-    except jwt.PyJWTError:
-        # If real JWT verification fails, but it looks like a test, raise exception
+        supabase_uid: str = user_response.user.id
+        payload = {
+            "email": user_response.user.email,
+            "user_metadata": user_response.user.user_metadata or {}
+        }
+    except Exception as e:
         raise credentials_exception
 
     # Query local user synced with Supabase UID

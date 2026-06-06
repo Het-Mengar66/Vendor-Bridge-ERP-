@@ -5,8 +5,10 @@ import Link from "next/link";
 import { FileText, Plus, Search, Filter, MoreHorizontal, Calendar, Clock, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
 
 export default function RFQsPage() {
+  const { user } = useAuthStore();
   const [rfqs, setRfqs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -70,12 +72,14 @@ export default function RFQsPage() {
           </div>
         </div>
         
-        <Link
-          href="/rfqs/create"
-          className="flex items-center px-4 py-2.5 rounded-lg font-medium transition-all bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20"
-        >
-          <Plus className="w-5 h-5 mr-1.5" /> Create RFQ
-        </Link>
+        {user?.role !== 'vendor' && (
+          <Link
+            href="/rfqs/create"
+            className="flex items-center px-4 py-2.5 rounded-lg font-medium transition-all bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20"
+          >
+            <Plus className="w-5 h-5 mr-1.5" /> Create RFQ
+          </Link>
+        )}
       </div>
 
       {/* Filters and Search */}
@@ -178,7 +182,7 @@ export default function RFQsPage() {
                         href={`/rfqs/${rfq.id}`}
                         className="flex items-center text-sm font-semibold text-primary hover:text-primary/80 group-hover:translate-x-1 transition-all"
                       >
-                        View <ArrowRight className="w-4 h-4 ml-1" />
+                        {user?.role === 'vendor' ? 'Submit Quote' : 'View'} <ArrowRight className="w-4 h-4 ml-1" />
                       </Link>
                     </div>
                   </div>
@@ -188,9 +192,11 @@ export default function RFQsPage() {
               <div className="col-span-full py-16 text-center glass-panel rounded-2xl">
                 <FileText className="h-12 w-12 mx-auto mb-4 opacity-20" />
                 <p className="text-base font-medium text-muted-foreground">No RFQs found matching your criteria.</p>
-                <Link href="/rfqs/create" className="text-primary hover:underline mt-2 inline-block">
-                  Create your first RFQ
-                </Link>
+                {user?.role !== 'vendor' && (
+                  <Link href="/rfqs/create" className="text-primary hover:underline mt-2 inline-block">
+                    Create your first RFQ
+                  </Link>
+                )}
               </div>
             )}
           </AnimatePresence>

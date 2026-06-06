@@ -10,6 +10,7 @@ export default function PurchaseOrderDetailsPage() {
   const { id } = useParams();
   const [po, setPo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     const fetchPO = async () => {
@@ -26,6 +27,20 @@ export default function PurchaseOrderDetailsPage() {
       fetchPO();
     }
   }, [id]);
+
+  const handleFulfill = async () => {
+    setUpdating(true);
+    try {
+      const res = await api.put(`/purchase-orders/${id}/status`, { status: "fulfilled" });
+      setPo(res.data);
+      alert("PO marked as fulfilled. An invoice has been automatically generated.");
+    } catch (error) {
+      console.error("Failed to fulfill PO:", error);
+      alert("Failed to update status.");
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -66,6 +81,16 @@ export default function PurchaseOrderDetailsPage() {
             <div className="px-3 py-1.5 rounded-full text-sm font-semibold capitalize bg-secondary border border-border">
               {po.status}
             </div>
+            {po.status !== 'fulfilled' && (
+              <button 
+                onClick={handleFulfill}
+                disabled={updating}
+                className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+              >
+                <CheckCircle className="w-4 h-4 mr-2" /> 
+                {updating ? 'Updating...' : 'Mark Fulfilled'}
+              </button>
+            )}
             <button 
               onClick={() => window.open(`${process.env.NEXT_PUBLIC_API_URL}/purchase-orders/${po.id}/pdf`, '_blank')}
               className="flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"

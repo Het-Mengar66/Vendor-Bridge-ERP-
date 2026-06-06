@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import api from '@/lib/api';
+import axios from 'axios';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 
@@ -43,8 +44,12 @@ export default function RegisterPage() {
         router.push('/login');
       }
     } catch (err: unknown) {
-      const errorMessage = (err as any).message || 'An error occurred during registration.';
-      setError(errorMessage);
+      if (axios.isAxiosError(err) && err.response?.data?.detail) {
+        setError(typeof err.response.data.detail === 'string' ? err.response.data.detail : JSON.stringify(err.response.data.detail));
+      } else {
+        const errorMessage = (err as any).message || 'An error occurred during registration.';
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }

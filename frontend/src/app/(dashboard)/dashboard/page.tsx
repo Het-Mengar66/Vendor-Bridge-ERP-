@@ -1,20 +1,62 @@
 "use client";
 
+import { useEffect, useState } from 'react';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Users, FileText, CheckSquare, DollarSign, Activity, FileSpreadsheet, ArrowRight, ShieldCheck, ShoppingCart } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import api from '@/lib/api';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
+  const [stats, setStats] = useState<any>(null);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const recentActivities = [
-    { id: 1, type: 'approval', title: 'Quotation Awarded', description: 'Tech Solutions Inc. awarded for RFQ-2026-001', time: '2 hours ago', icon: ShieldCheck, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-    { id: 2, type: 'po', title: 'Purchase Order Issued', description: 'PO-2026-042 sent to Tech Solutions Inc.', time: '4 hours ago', icon: ShoppingCart, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-    { id: 3, type: 'rfq', title: 'New RFQ Published', description: 'Warehouse Racking System (RFQ-2026-002)', time: 'Yesterday', icon: FileText, color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
-    { id: 4, type: 'vendor', title: 'Vendor Registered', description: 'Global Logistics Partners submitted profile', time: 'Yesterday', icon: Users, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-  ];
+  useEffect(() => {
+    async function fetchDashboardData() {
+      try {
+        const [statsRes, logsRes] = await Promise.all([
+          api.get('/reports/dashboard-stats'),
+          api.get('/activity/logs?filter=all')
+        ]);
+        setStats(statsRes.data);
+        setActivities(logsRes.data.slice(0, 5)); // show top 5
+      } catch (err) {
+        console.error('Failed to fetch dashboard data', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchDashboardData();
+  }, []);
+
+  // Format currency
+  const formatCurrency = (val: number) => {
+    if (val >= 1000) return `$${(val / 1000).toFixed(1)}K`;
+    return `$${val}`;
+  };
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'approval': return ShieldCheck;
+      case 'po': return ShoppingCart;
+      case 'rfq': return FileText;
+      case 'vendor': return Users;
+      default: return Activity;
+    }
+  };
+
+  const getActivityColor = (type: string) => {
+    switch (type) {
+      case 'approval': return { text: 'text-emerald-500', bg: 'bg-emerald-500/10' };
+      case 'po': return { text: 'text-blue-500', bg: 'bg-blue-500/10' };
+      case 'rfq': return { text: 'text-indigo-500', bg: 'bg-indigo-500/10' };
+      case 'vendor': return { text: 'text-amber-500', bg: 'bg-amber-500/10' };
+      default: return { text: 'text-gray-500', bg: 'bg-gray-500/10' };
+    }
+  };
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -43,38 +85,21 @@ export default function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatsCard 
-          title="Active Vendors" 
-          value="24" 
-          icon={Users} 
-          trend="12%" 
-          trendUp={true}
-          delay={0.1}
-        />
-        <StatsCard 
-          title="Open RFQs" 
-          value="12" 
-          icon={FileText} 
-          trend="8%" 
-          trendUp={true}
-          delay={0.2}
-        />
-        <StatsCard 
-          title="Pending Approvals" 
-          value="5" 
-          icon={CheckSquare} 
-          trend="2%" 
-          trendUp={false}
-          delay={0.3}
-        />
-        <StatsCard 
-          title="Total PO Value" 
-          value="$245K" 
-          icon={DollarSign} 
-          trend="18%" 
-          trendUp={true}
-          delay={0.4}
-        />
+        {user?.role === 'vendor' ? (
+          <>
+            <StatsCard title="Open RFQs" value={stats ? stats.active_rfqs.toString() : "0"} icon={FileText} trend="New assignments" trendUp={true} delay={0.1} />
+            <StatsCard title="Submitted Quotes" value="0" icon={FileSpreadsheet} trend="Awaiting review" trendUp={true} delay={0.2} />
+            <StatsCard title="Won Contracts" value="0" icon={CheckSquare} trend="0%" trendUp={true} delay={0.3} />
+            <StatsCard title="Total Earnings" value="$0" icon={DollarSign} trend="0%" trendUp={true} delay={0.4} />
+          </>
+        ) : (
+          <>
+            <StatsCard title="Active Vendors" value={stats ? stats.vendor_count.toString() : "0"} icon={Users} trend="12%" trendUp={true} delay={0.1} />
+            <StatsCard title="Open RFQs" value={stats ? stats.active_rfqs.toString() : "0"} icon={FileText} trend="8%" trendUp={true} delay={0.2} />
+            <StatsCard title="Pending Approvals" value={stats ? stats.pending_approvals.toString() : "0"} icon={CheckSquare} trend="2%" trendUp={false} delay={0.3} />
+            <StatsCard title="Total PO Value" value={stats ? formatCurrency(stats.total_spent) : "$0"} icon={DollarSign} trend="18%" trendUp={true} delay={0.4} />
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -84,12 +109,17 @@ export default function DashboardPage() {
             <Activity className="w-5 h-5 mr-2 text-primary" /> Active Workflows
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {[
+            {(user?.role === 'vendor' ? [
+              { title: "View Open RFQs", count: stats?.active_rfqs || 0, href: "/rfqs", icon: FileText, color: "bg-indigo-500" },
+              { title: "My Quotations", count: 0, href: "/quotations", icon: FileSpreadsheet, color: "bg-blue-500" },
+              { title: "My Purchase Orders", count: 0, href: "/purchase-orders", icon: ShoppingCart, color: "bg-emerald-500" },
+              { title: "Update Profile", count: 1, href: "/vendors", icon: Users, color: "bg-amber-500" },
+            ] : [
               { title: "Review Quotations", count: 12, href: "/quotations", icon: FileSpreadsheet, color: "bg-indigo-500" },
-              { title: "Authorize POs", count: 3, href: "/approvals", icon: ShieldCheck, color: "bg-emerald-500" },
+              { title: "Authorize POs", count: stats?.pending_approvals || 0, href: "/approvals", icon: ShieldCheck, color: "bg-emerald-500" },
               { title: "Process Invoices", count: 8, href: "/invoices", icon: DollarSign, color: "bg-amber-500" },
-              { title: "Vendor Onboarding", count: 2, href: "/vendors", icon: Users, color: "bg-blue-500" },
-            ].map((action, i) => (
+              { title: "Vendor Onboarding", count: stats?.vendor_count || 0, href: "/vendors", icon: Users, color: "bg-blue-500" },
+            ]).map((action, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -123,21 +153,33 @@ export default function DashboardPage() {
               Recent Activity
             </h2>
             <div className="space-y-6">
-              {recentActivities.map((activity, index) => (
-                <div key={activity.id} className="flex relative">
-                  {index !== recentActivities.length - 1 && (
-                    <div className="absolute top-10 left-5 bottom-0 w-px bg-border -ml-px" />
-                  )}
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 z-10 ${activity.bg} ${activity.color}`}>
-                    <activity.icon className="w-5 h-5" />
-                  </div>
-                  <div className="ml-4 pb-2">
-                    <h4 className="text-sm font-bold text-foreground">{activity.title}</h4>
-                    <p className="text-xs text-muted-foreground mt-1 mb-1">{activity.description}</p>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">{activity.time}</span>
-                  </div>
-                </div>
-              ))}
+              {loading ? (
+                <div className="text-sm text-muted-foreground animate-pulse">Loading activity...</div>
+              ) : activities.length > 0 ? (
+                activities.map((activity, index) => {
+                  const Icon = getActivityIcon(activity.entity_type);
+                  const colors = getActivityColor(activity.entity_type);
+                  return (
+                    <div key={activity.id} className="flex relative">
+                      {index !== activities.length - 1 && (
+                        <div className="absolute top-10 left-5 bottom-0 w-px bg-border -ml-px" />
+                      )}
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 z-10 ${colors.bg} ${colors.text}`}>
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <div className="ml-4 pb-2">
+                        <h4 className="text-sm font-bold text-foreground capitalize">{activity.action_type.replace('_', ' ')}</h4>
+                        <p className="text-xs text-muted-foreground mt-1 mb-1">{activity.description}</p>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+                          {new Date(activity.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-sm text-muted-foreground">No recent activity.</div>
+              )}
             </div>
             <button className="w-full mt-6 py-2.5 text-sm font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-xl transition-colors">
               View All Activity

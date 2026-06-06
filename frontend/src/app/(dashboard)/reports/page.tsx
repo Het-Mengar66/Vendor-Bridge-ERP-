@@ -1,27 +1,65 @@
 "use client";
 
-import { useState } from "react";
-import { BarChart3, TrendingUp, PieChart, Download, Calendar, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { BarChart3, TrendingUp, PieChart, Download, Calendar, ArrowUpRight, ArrowDownRight, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
+import api from "@/lib/api";
 
 export default function ReportsPage() {
   const [dateRange, setDateRange] = useState("Last 30 Days");
+  const [loading, setLoading] = useState(true);
+  
+  const [summary, setSummary] = useState<any>(null);
+  const [spendData, setSpendData] = useState<any[]>([]);
+  const [categoryData, setCategoryData] = useState<any[]>([]);
 
-  const spendData = [
-    { month: "Jan", value: 45 },
-    { month: "Feb", value: 52 },
-    { month: "Mar", value: 48 },
-    { month: "Apr", value: 61 },
-    { month: "May", value: 59 },
-    { month: "Jun", value: 75 },
-  ];
+  useEffect(() => {
+    async function fetchReports() {
+      try {
+        const [summaryRes, trendsRes, catRes] = await Promise.all([
+          api.get("/reports/procurement-summary"),
+          api.get("/reports/monthly-trends"),
+          api.get("/reports/spending-by-category")
+        ]);
+        
+        setSummary(summaryRes.data);
+        
+        const rawTrends = trendsRes.data;
+        // Map data for CSS chart (value max scale to 100)
+        const maxSpend = Math.max(...rawTrends.map((d: any) => d.amount), 1);
+        
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        
+        setSpendData(rawTrends.map((d: any) => {
+          const mParts = d.month.split('-');
+          const mIndex = parseInt(mParts[1], 10) - 1;
+          const monthName = monthNames[mIndex] || d.month;
+          
+          return {
+            month: monthName,
+            amount: d.amount,
+            value: (d.amount / maxSpend) * 100 // normalized to 0-100 for height
+          };
+        }));
+        
+        const colors = ["bg-blue-500", "bg-indigo-500", "bg-emerald-500", "bg-amber-500"];
+        setCategoryData(catRes.data.map((c: any, i: number) => ({
+          ...c,
+          color: colors[i % colors.length]
+        })));
+        
+      } catch (err) {
+        console.error("Failed to load reports", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchReports();
+  }, [dateRange]);
 
-  const categoryData = [
-    { name: "Hardware", percentage: 45, color: "bg-blue-500" },
-    { name: "Software", percentage: 25, color: "bg-indigo-500" },
-    { name: "Services", percentage: 20, color: "bg-emerald-500" },
-    { name: "Office", percentage: 10, color: "bg-amber-500" },
-  ];
+  if (loading) {
+    return <div className="text-center py-24 flex flex-col items-center"><RefreshCw className="w-8 h-8 animate-spin text-primary mb-4" /> Loading Reports...</div>;
+  }
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-10">
@@ -63,9 +101,9 @@ export default function ReportsPage() {
       {/* KPI Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
-          { title: "Total Procurement Spend", value: "$340,500", trend: "+12.5%", isPositive: true },
-          { title: "Average Savings vs Budget", value: "8.2%", trend: "+1.2%", isPositive: true },
-          { title: "Average Vendor Rating", value: "4.6 / 5", trend: "-0.1", isPositive: false },
+          { title: "Total Procurement Spend", value: `$${summary?.total_spend?.toLocaleString() || '0'}`, trend: "+12.5%", isPositive: true },
+          { title: "Average Savings vs Budget", value: `${summary?.procurement_savings_percent || '0'}%`, trend: "+1.2%", isPositive: true },
+          { title: "Orders Closed", value: `${summary?.orders_closed || '0'}`, trend: "Stable", isPositive: true },
         ].map((kpi, i) => (
           <motion.div 
             key={i}
@@ -101,24 +139,26 @@ export default function ReportsPage() {
             <span className="text-sm font-medium text-muted-foreground">in Thousands (USD)</span>
           </div>
           
-          <div className="flex-1 flex items-end gap-2 sm:gap-6 pt-10 h-64 border-b border-l border-border pb-2 pl-2">
+          <div className="flex-1 flex items-end gap-2 sm:gap-6 pt-10 h-64 border-b border-l border-border pb-8 pl-2 relative">
             {spendData.map((d, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center group relative h-full justify-end">
+              <div key={i} className="flex-1 group relative h-full flex flex-col justify-end">
                 {/* Tooltip */}
-                <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-foreground text-background text-xs font-bold px-2 py-1 rounded shadow-lg pointer-events-none z-10 whitespace-nowrap">
-                  ${d.value}K
+                <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-foreground text-background text-xs font-bold px-2 py-1 rounded shadow-lg pointer-events-none z-10 whitespace-nowrap">
+                  ${d.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 {/* Bar */}
-                <motion.div 
-                  initial={{ height: 0 }}
-                  animate={{ height: `${(d.value / 80) * 100}%` }}
-                  transition={{ duration: 1, delay: 0.5 + (i * 0.1) }}
-                  className="w-full bg-primary/20 group-hover:bg-primary transition-colors rounded-t-md relative overflow-hidden"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-t from-transparent to-primary/30" />
-                </motion.div>
+                <div className="w-full flex-1 flex flex-col justify-end">
+                  <motion.div 
+                    initial={{ height: 0 }}
+                    animate={{ height: `${d.value}%` }}
+                    transition={{ duration: 1, delay: 0.5 + (i * 0.1) }}
+                    className="w-full bg-primary/40 group-hover:bg-primary transition-colors rounded-t-md relative overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-t from-transparent to-primary/30" />
+                  </motion.div>
+                </div>
                 {/* Label */}
-                <span className="text-xs font-medium text-muted-foreground mt-3">{d.month}</span>
+                <span className="absolute -bottom-6 left-0 right-0 text-center text-xs font-medium text-muted-foreground">{d.month}</span>
               </div>
             ))}
           </div>

@@ -13,21 +13,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function initializeAuth() {
       try {
-        if (process.env.NODE_ENV === 'development') {
-          // Development mock bypass
-          const mockSession: any = { access_token: "mock-admin", user: { id: "mock-1" } };
-          const mockUser: any = {
-            id: "mock-1",
-            email: "admin@vendorbridge.app",
-            first_name: "Admin",
-            last_name: "User",
-            role: "admin"
-          };
-          setSession(mockSession);
-          setUser(mockUser);
-          return;
-        }
-
         const { data: { session } } = await supabase.auth.getSession();
         
         if (!mounted) return;
@@ -62,10 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initializeAuth();
 
-    // In development, skip the Supabase auth listener since we use mock auth
-    if (process.env.NODE_ENV === 'development') {
-      return;
-    }
+    // Removed development bypass for auth listener
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {

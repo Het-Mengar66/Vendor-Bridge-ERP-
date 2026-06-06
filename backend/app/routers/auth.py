@@ -23,9 +23,22 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user_in: UserSync, db: Session = Depends(get_db)):
-    # Check if user already exists
     existing_user = db.query(User).filter(User.email == user_in.email).first()
     if existing_user:
+        # If auto-created by dependencies.py get_current_user race condition, update it
+        if existing_user.first_name == "Supabase":
+            existing_user.first_name = user_in.first_name
+            existing_user.last_name = user_in.last_name
+            existing_user.role = user_in.role
+            existing_user.phone = user_in.phone
+            existing_user.country = user_in.country
+            existing_user.avatar_url = user_in.avatar_url
+            existing_user.additional_info = user_in.additional_info
+            existing_user.supabase_uid = user_in.id
+            db.commit()
+            db.refresh(existing_user)
+            return existing_user
+        
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="A user with this email already exists"

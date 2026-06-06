@@ -6,9 +6,12 @@ import uuid
 
 from app.database import get_db
 from app.models.rfq import RFQ, RFQItem, RFQVendor
+from app.models.vendor import Vendor
 from app.schemas.rfq import RFQCreate, RFQResponse, RFQUpdate, RFQVendorCreate
 from app.models.user import User
 from app.dependencies import get_current_user
+from app.services.activity_service import ActivityService
+from app.schemas.activity_log import ActivityLogCreate
 
 router = APIRouter(
     prefix="/rfqs",
@@ -17,7 +20,7 @@ router = APIRouter(
 
 @router.post("/", response_model=RFQResponse, status_code=status.HTTP_201_CREATED)
 def create_rfq(rfq_in: RFQCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if current_user.role not in ["procurement_officer", "admin"]:
+    if current_user.role not in ["procurement_officer", "admin", "manager"]:
         raise HTTPException(status_code=403, detail="Not authorized to create RFQs")
     
     # Generate an RFQ number
@@ -51,10 +54,25 @@ def create_rfq(rfq_in: RFQCreate, db: Session = Depends(get_db), current_user: U
         db.commit()
         db.refresh(db_rfq)
         
+    ActivityService.create_log(db, ActivityLogCreate(
+        user_id=current_user.id,
+        action="Created RFQ",
+        entity_type="rfq",
+        entity_id=db_rfq.id,
+        target=db_rfq.rfq_number
+    ))
+        
     return db_rfq
 
 @router.get("/", response_model=List[RFQResponse])
 def list_rfqs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.role == "vendor":
+        vendor = db.query(Vendor).filter(Vendor.user_id == current_user.id).first()
+        if not vendor:
+            return []
+        rfqs = db.query(RFQ).join(RFQVendor).filter(RFQVendor.vendor_id == vendor.id).offset(skip).limit(limit).all()
+        return rfqs
+        
     rfqs = db.query(RFQ).offset(skip).limit(limit).all()
     return rfqs
 
@@ -71,7 +89,7 @@ def update_rfq(rfq_id: UUID, rfq_in: RFQUpdate, db: Session = Depends(get_db), c
     if not rfq:
         raise HTTPException(status_code=404, detail="RFQ not found")
         
-    if current_user.role not in ["procurement_officer", "admin"] or rfq.created_by != current_user.id:
+    if current_user.role not in ["procurement_officer", "admin", "manager"] or rfq.created_by != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to update this RFQ")
         
     update_data = rfq_in.model_dump(exclude_unset=True)

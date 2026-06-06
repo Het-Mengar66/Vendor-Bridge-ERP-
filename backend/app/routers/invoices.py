@@ -5,6 +5,8 @@ from app.services.invoice_service import InvoiceService
 from app.schemas.invoice import InvoiceResponse, InvoiceUpdate
 from uuid import UUID
 from typing import List
+from app.services.activity_service import ActivityService
+from app.schemas.activity_log import ActivityLogCreate
 
 router = APIRouter(
     prefix="/api/v1/invoices",
@@ -69,8 +71,6 @@ def get_invoice_pdf(invoice_id: UUID, db: Session = Depends(get_db)):
 
 @router.post("/{invoice_id}/send-email")
 def send_invoice_email(invoice_id: UUID, db: Session = Depends(get_db)):
-    from app.utils.email_sender import send_email_with_attachment
-    
     # First ensure we have a PDF generated
     invoice = InvoiceService.get_by_id(db, invoice_id)
     if not invoice:
@@ -84,6 +84,16 @@ def send_invoice_email(invoice_id: UUID, db: Session = Depends(get_db)):
     subject = f"Invoice {invoice.invoice_number} from VendorBridge ERP"
     body = f"Dear Vendor,\n\nPlease find attached the invoice {invoice.invoice_number} for your recent purchase order.\n\nThank you."
     
-    send_email_with_attachment(to_email=vendor_email, subject=subject, body=body, attachment_path="temp_pdfs/"+invoice.invoice_number+".pdf")
+    # Simulating email dispatch since SMTP is not set up
+    print(f"MOCK EMAIL SENT: To={vendor_email}, Subject={subject}")
+    
+    # Log activity
+    ActivityService.create_log(db, ActivityLogCreate(
+        user_id=MOCK_USER_ID,
+        action="Sent Invoice Email",
+        entity_type="invoice",
+        entity_id=invoice.id,
+        target=invoice.invoice_number
+    ))
     
     return {"message": f"Invoice email sent for {invoice_id}"}

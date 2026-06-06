@@ -5,6 +5,9 @@ from app.schemas.purchase_order import PurchaseOrderCreate, PurchaseOrderRespons
 from app.services.po_service import POService
 from uuid import UUID
 from typing import List
+from app.services.activity_service import ActivityService
+from app.schemas.activity_log import ActivityLogCreate
+from app.services.invoice_service import InvoiceService
 
 router = APIRouter(
     prefix="/api/v1/purchase-orders",
@@ -29,7 +32,18 @@ def get_purchase_order(id: UUID, db: Session = Depends(get_db)):
 def create_purchase_order(po_in: PurchaseOrderCreate, db: Session = Depends(get_db)):
     # In a real app, created_by would come from the JWT auth session.
     # For now, we mock the creating user using the requested_by / creator ID.
-    return POService.create(db, po_in, created_by=po_in.approval_id)
+    po = POService.create(db, po_in, created_by=po_in.approval_id)
+    
+    # Log activity
+    ActivityService.create_log(db, ActivityLogCreate(
+        user_id=po_in.approval_id,
+        action="Generated Purchase Order",
+        entity_type="po",
+        entity_id=po.id,
+        target=po.po_number
+    ))
+    
+    return po
 
 @router.put("/{id}/status", response_model=PurchaseOrderResponse)
 def update_po_status(id: UUID, po_update: PurchaseOrderUpdate, db: Session = Depends(get_db)):
@@ -39,6 +53,28 @@ def update_po_status(id: UUID, po_update: PurchaseOrderUpdate, db: Session = Dep
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Purchase order not found"
         )
+        
+    # Auto-generate Invoice if status is fulfilled
+    if po_update.status == "fulfilled":
+        invoice = InvoiceService.generate_from_po(db, po_id=id, created_by=po.created_by)
+        
+        if invoice:
+            ActivityService.create_log(db, ActivityLogCreate(
+                user_id=po.created_by,
+                action="Auto-Generated Invoice",
+                entity_type="invoice",
+                entity_id=invoice.id,
+                target=invoice.invoice_number
+            ))
+
+    ActivityService.create_log(db, ActivityLogCreate(
+        user_id=po.created_by,
+        action=f"Marked PO as {po_update.status}",
+        entity_type="po",
+        entity_id=po.id,
+        target=po.po_number
+    ))
+
     return po
 
 @router.get("/{id}/pdf")

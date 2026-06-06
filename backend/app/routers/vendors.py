@@ -12,7 +12,7 @@ from app.dependencies import get_current_user, RoleChecker
 router = APIRouter(prefix="/vendors", tags=["Vendors"])
 
 # Role checkers
-officer_or_admin = RoleChecker(["admin", "procurement_officer"])
+officer_or_admin = RoleChecker(["admin", "procurement_officer", "manager"])
 admin_only = RoleChecker(["admin"])
 
 @router.get("/", response_model=List[VendorResponse])
@@ -48,8 +48,13 @@ def list_vendors(
 def create_vendor(
     vendor_in: VendorCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(officer_or_admin)
+    current_user: User = Depends(get_current_user)
 ):
+    if current_user.role == "vendor":
+        # Vendors can only create their own profile
+        vendor_in.user_id = current_user.id
+    elif current_user.role not in ["admin", "procurement_officer", "manager"]:
+        raise HTTPException(status_code=403, detail="Not authorized to create vendors")
     # Check if vendor email is unique
     existing_vendor = db.query(Vendor).filter(Vendor.email == vendor_in.email).first()
     if existing_vendor:
@@ -66,6 +71,18 @@ def create_vendor(
     db.commit()
     db.refresh(db_vendor)
     return db_vendor
+
+@router.get("/me", response_model=VendorResponse)
+def get_my_vendor(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "vendor":
+        raise HTTPException(status_code=400, detail="Only vendors have a vendor profile")
+    vendor = db.query(Vendor).filter(Vendor.user_id == current_user.id).first()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor profile not found")
+    return vendor
 
 @router.get("/{id}", response_model=VendorResponse)
 def get_vendor(
@@ -94,7 +111,7 @@ def update_vendor(
     id: UUID,
     vendor_update: VendorUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(officer_or_admin)
+    current_user: User = Depends(get_current_user)
 ):
     vendor = db.query(Vendor).filter(Vendor.id == id).first()
     if not vendor:
@@ -102,6 +119,11 @@ def update_vendor(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Vendor not found"
         )
+        
+    if current_user.role == "vendor" and vendor.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only update your own profile")
+    elif current_user.role not in ["admin", "procurement_officer", "manager", "vendor"]:
+        raise HTTPException(status_code=403, detail="Not authorized to update vendors")
         
     # If email is being updated, check uniqueness
     if vendor_update.email and vendor_update.email != vendor.email:

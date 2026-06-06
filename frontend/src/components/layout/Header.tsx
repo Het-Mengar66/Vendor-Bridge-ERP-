@@ -53,9 +53,11 @@ export function Header() {
           </div>
           <div className="hidden md:flex flex-col">
             <span className="text-sm font-medium text-foreground leading-tight group-hover:text-primary transition-colors">
-              {user?.email?.split('@')[0] || 'User'}
+              {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : user?.email?.split('@')[0] || 'User'}
             </span>
-            <span className="text-xs text-muted-foreground leading-tight">Admin</span>
+            <span className="text-xs text-muted-foreground leading-tight capitalize">
+              {user?.role ? user.role.replace('_', ' ') : 'User'}
+            </span>
           </div>
           <ChevronDown className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
         </div>

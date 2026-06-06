@@ -1,6 +1,8 @@
 from sqlalchemy.orm import Session
 from app.models.quotation import Quotation, QuotationItem
 from app.schemas.quotation import QuotationCreate
+from app.services.activity_service import ActivityService
+from app.schemas.activity_log import ActivityLogCreate
 from uuid import UUID
 import random
 import string
@@ -40,6 +42,20 @@ def create_quotation(db: Session, quotation: QuotationCreate):
     
     db.commit()
     db.refresh(db_quotation)
+    
+    # We log activity with the vendor_id assuming we map it back or just use the MOCK_USER_ID if unknown.
+    # In reality the caller router should pass current_user.id.
+    import uuid
+    MOCK_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000000")
+    
+    ActivityService.create_log(db, ActivityLogCreate(
+        user_id=MOCK_USER_ID,
+        action="Submitted Quotation",
+        entity_type="quotation",
+        entity_id=db_quotation.id,
+        target=db_quotation.quotation_number
+    ))
+    
     return db_quotation
 
 def get_quotation(db: Session, quotation_id: UUID):

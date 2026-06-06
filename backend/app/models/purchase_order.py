@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Integer, Numeric, ForeignKey, DateTime, Date, Text, text
+from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.database import Base
 
@@ -23,6 +24,9 @@ class PurchaseOrder(Base):
     created_at = Column(DateTime, server_default=text("now()"))
     updated_at = Column(DateTime, server_default=text("now()"))
 
+    # Relationships
+    items = relationship("POItem", back_populates="purchase_order", cascade="all, delete-orphan")
+
 class POItem(Base):
     __tablename__ = "po_items"
 
@@ -34,3 +38,6 @@ class POItem(Base):
     unit_price = Column(Numeric(15, 2), nullable=False)
     total_price = Column(Numeric(15, 2), nullable=False)
     created_at = Column(DateTime, server_default=text("now()"))
+
+    # Relationships
+    purchase_order = relationship("PurchaseOrder", back_populates="items")

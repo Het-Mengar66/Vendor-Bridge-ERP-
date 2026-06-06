@@ -122,7 +122,7 @@ export default function QuotationsPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-semibold text-foreground">
-                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: q.currency }).format(q.total_amount)}
+                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: q.currency || 'USD' }).format(q.total_amount || 0)}
                           </span>
                           {getCompetitivenessIcon(q.competitiveness)}
                         </div>
