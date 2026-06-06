@@ -6,6 +6,10 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
+  if (process.env.NODE_ENV === 'development') {
+    config.headers.Authorization = 'Bearer mock-admin';
+    return config;
+  }
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.access_token) {
     config.headers.Authorization = `Bearer ${session.access_token}`;

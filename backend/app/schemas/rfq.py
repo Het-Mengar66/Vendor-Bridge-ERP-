@@ -55,6 +55,7 @@ class RFQBase(BaseModel):
     description: Optional[str] = None
     category: Optional[str] = None
     deadline: datetime
+    status: Optional[str] = "draft"
 
 class RFQCreate(RFQBase):
     # Optional nested creation for items

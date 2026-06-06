@@ -30,6 +30,7 @@ def create_rfq(rfq_in: RFQCreate, db: Session = Depends(get_db), current_user: U
         description=rfq_in.description,
         category=rfq_in.category,
         deadline=rfq_in.deadline,
+        status=rfq_in.status,
         created_by=current_user.id
     )
     db.add(db_rfq)

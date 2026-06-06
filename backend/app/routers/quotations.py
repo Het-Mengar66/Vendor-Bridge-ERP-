@@ -17,6 +17,12 @@ def submit_quotation(quotation: QuotationCreate, db: Session = Depends(get_db)):
     # Logic to ensure the quotation doesn't already exist for this vendor/RFQ could be added here
     return quotation_service.create_quotation(db=db, quotation=quotation)
 
+@router.get("/", response_model=List[QuotationResponse])
+def list_quotations(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Get all quotations"""
+    from app.models.quotation import Quotation
+    return db.query(Quotation).offset(skip).limit(limit).all()
+
 @router.get("/{quotation_id}", response_model=QuotationResponse)
 def get_quotation(quotation_id: UUID, db: Session = Depends(get_db)):
     """Get details of a specific quotation"""

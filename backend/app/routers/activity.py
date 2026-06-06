@@ -6,7 +6,7 @@ from app.schemas.activity_log import ActivityLogResponse, ActivityLogCreate
 from typing import List, Optional
 
 router = APIRouter(
-    prefix="/activity",
+    prefix="/api/v1/activity",
     tags=["Activity Logs"],
 )
 

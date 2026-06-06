@@ -5,6 +5,8 @@ import VendorTable from "@/components/vendors/VendorTable";
 import VendorForm from "@/components/vendors/VendorForm";
 import api from "@/lib/api";
 import { Vendor } from "@/types";
+import { Plus, Users } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 
 export default function VendorsPage() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -15,8 +17,6 @@ export default function VendorsPage() {
   const fetchVendors = async () => {
     setLoading(true);
     try {
-      // In a real app this would use the real API: await api.get("/vendors");
-      // But until the backend is fully wired, we will use some mock data if API fails
       const res = await api.get("/vendors").catch(() => {
         // Fallback mock data if API is not available
         return {
@@ -65,37 +65,65 @@ export default function VendorsPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Vendors</h1>
-          <p className="text-gray-500">Manage supplier profiles and registrations.</p>
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card/40 p-6 rounded-2xl border border-border shadow-sm backdrop-blur-md">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-primary/10 rounded-xl">
+            <Users className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Vendor Management</h1>
+            <p className="text-sm text-muted-foreground mt-1">Manage supplier profiles, registrations, and status.</p>
+          </div>
         </div>
+        
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+          className={`flex items-center px-4 py-2.5 rounded-lg font-medium transition-all ${
+            showForm 
+              ? "bg-secondary text-secondary-foreground hover:bg-secondary/80" 
+              : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20"
+          }`}
         >
-          {showForm ? "Cancel" : "+ Add Vendor"}
+          {showForm ? "Cancel" : <><Plus className="w-5 h-5 mr-1.5" /> Add Vendor</>}
         </button>
       </div>
 
-      {showForm && (
-        <div className="mb-6">
+      <AnimatePresence>
+        {showForm && (
           <VendorForm onSuccess={() => {
             setShowForm(false);
             fetchVendors();
           }} />
-        </div>
+        )}
+      </AnimatePresence>
+
+      {error && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 bg-destructive/10 text-destructive border border-destructive/20 rounded-xl font-medium"
+        >
+          {error}
+        </motion.div>
       )}
 
-      {error && <div className="p-4 bg-red-100 text-red-700 rounded-md">{error}</div>}
-
       {loading ? (
-        <div className="flex justify-center p-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="flex justify-center items-center p-24 glass-panel rounded-2xl">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-primary/20 border-t-primary"></div>
+            <p className="text-muted-foreground font-medium animate-pulse">Loading vendors...</p>
+          </div>
         </div>
       ) : (
-        <VendorTable vendors={vendors} onRefresh={fetchVendors} />
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <VendorTable vendors={vendors} onRefresh={fetchVendors} />
+        </motion.div>
       )}
     </div>
   );

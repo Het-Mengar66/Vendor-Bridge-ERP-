@@ -7,7 +7,7 @@ from uuid import UUID
 from typing import List
 
 router = APIRouter(
-    prefix="/invoices",
+    prefix="/api/v1/invoices",
     tags=["Invoices"],
 )
 
