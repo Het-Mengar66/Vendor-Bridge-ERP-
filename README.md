@@ -6,7 +6,6 @@
 
 ### Next-Generation Procurement & Vendor Management Platform
 
-*AI-driven quotation analysis · Automated purchase orders · Real-time approvals*
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-67.4%25-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Python](https://img.shields.io/badge/Python-31.6%25-3776AB?style=flat-square&logo=python)](https://www.python.org/)
