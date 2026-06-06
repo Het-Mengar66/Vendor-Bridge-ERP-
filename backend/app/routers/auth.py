@@ -6,7 +6,7 @@ from typing import Optional
 from app.database import get_db
 from app.config import settings
 from app.models.user import User
-from app.schemas.user import UserCreate, UserResponse, UserUpdate
+from app.schemas.user import UserCreate, UserResponse, UserUpdate, UserSync
 from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -22,7 +22,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register(user_in: UserCreate, db: Session = Depends(get_db)):
+def register(user_in: UserSync, db: Session = Depends(get_db)):
     # Check if user already exists
     existing_user = db.query(User).filter(User.email == user_in.email).first()
     if existing_user:
@@ -40,6 +40,7 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
         country=user_in.country,
         avatar_url=user_in.avatar_url,
         additional_info=user_in.additional_info,
+        supabase_uid=user_in.id,
         is_active=True
     )
     db.add(db_user)

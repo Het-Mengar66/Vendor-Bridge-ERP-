@@ -39,9 +39,10 @@ export default function RegisterPage() {
         alert('Registration successful! Please log in.');
         router.push('/login');
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during registration.');
-      alert(err.message || 'Registration error'); // Showing toast equivalent for now
+    } catch (err: unknown) {
+      const errorMessage = (err as any).message || 'An error occurred during registration.';
+      setError(errorMessage);
+      alert(errorMessage); // Showing toast equivalent for now
     }
   };
 
